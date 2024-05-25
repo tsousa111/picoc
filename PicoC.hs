@@ -353,66 +353,70 @@ ifMerge (ITE x1 [ITE x2 t2 []] e1) = Just (ITE (AND x1 x2) t2 e1)
 ifMerge _ = Nothing
 
 -- NOTE: Quickcheck Tpc Entrega 04-04 do prop
--- instance Arbitrary PicoC where
---     arbitrary = genPicoC
--- genPicoC :: Gen PicoC
--- genPicoC = do
---     x <- vectorOf 5 genInst
---     return (PicoC x)
---
--- genInst :: Gen Inst
--- genInst = frequency [(95, genAttrib), (2, genWhile), (3, genITE)]
---
--- genAttrib :: Gen Inst
--- genAttrib = do
---     x <- genVarName
---     Attrib x <$> genExp
---
--- genWhile :: Gen Inst
--- genWhile = do
---     x <- genExp
---     While x <$> genCBlock
---
--- genITE :: Gen Inst
--- genITE = do
---     x <- genExp
---     y <- genCBlock
---     ITE x y <$> genCBlock
---
--- genExp :: Gen Exp
--- genExp = frequency [genConst, genVar, genBool, genArithmeticExpo, genAND, genOR, genLT, genGT, genEQ, genNot]
---   where
---     genConst = (60, do Const <$> arbitrary)
---     genVar = (30, do Var <$> genVarName)
---     genBool = (10, elements [TRUE, FALSE])
---     genArithmeticExpo = (1, genArithmeticExp)
---     genAND = (1, do x <- genExp; AND x <$> genExp)
---     genOR = (1, do x <- genExp; OR x <$> genExp)
---     genLT = (1, do x <- genExp; LT x <$> genExp)
---     genGT = (1, do x <- genExp; GT x <$> genExp)
---     genEQ = (1, do x <- genExp; EQ x <$> genExp)
---     genNot = (1, do Not <$> genExp)
---
--- genArithmeticExp :: Gen Exp
--- genArithmeticExp = frequency [genConst, genVar, genAdd, genSub, genMult, genDiv, genNeg]
---   where
---     genConst = (80, do Const <$> arbitrary)
---     genVar = (15, do Var <$> genVarName)
---     genAdd = (1, do x <- genArithmeticExp; Add x <$> genArithmeticExp)
---     genSub = (1, do x <- genArithmeticExp; Sub x <$> genArithmeticExp)
---     genMult = (1, do x <- genArithmeticExp; Mult x <$> genArithmeticExp)
---     genDiv = (1, do x <- genArithmeticExp; Div x <$> genArithmeticExp)
---     genNeg = (1, do Neg <$> genArithmeticExp)
---
--- genVarName :: Gen String
--- genVarName = do
---     -- to make sure the var name is valid
---     f <- elements ['a' .. 'z']
---     r <- listOf (elements (['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']))
---     return (f : r)
---
--- genCBlock :: Gen CBlock
--- genCBlock = vectorOf 5 genInst
+instance Arbitrary PicoC where
+    arbitrary = genPicoC
+    
+genPicoC :: Gen PicoC
+genPicoC = do
+    x <- vectorOf 5 genInst
+    return (PicoC x)
+
+genInst :: Gen Inst
+genInst = frequency [(95, genAttrib), (2, genWhile), (3, genITE)]
+
+genAttrib :: Gen Inst
+genAttrib = do
+    var <- genVarName
+    exp <- genExp
+    return $ Attrib var exp
+
+genWhile :: Gen Inst
+genWhile = do
+    exp <- genExp
+    cBlock <- genCBlock
+    return $ While exp cBlock
+
+genITE :: Gen Inst
+genITE = do
+    exp <- genExp
+    t <- genCBlock
+    e <- genCBlock
+    return $ ITE exp t e
+
+genExp :: Gen Exp
+genExp = frequency [genConst, genVar, genBool, genArithmeticExpo, genAND, genOR, genLT, genGT, genEQ, genNot]
+  where
+    genConst = (60, do x <- arbitrary; return $ Const x)
+    genVar = (30, do x <- genVarName; return $ Var x)
+    genBool = (10, elements [TRUE, FALSE])
+    genArithmeticExpo = (1, genArithmeticExp)
+    genAND = (1, do x <- genExp; y <- genExp ; return $ AND x y)
+    genOR = (1, do x <- genExp; y <- genExp ; return $ OR x y)
+    genLT = (1, do x <- genExp; y <- genExp ; return $ LT x y)
+    genGT = (1, do x <- genExp; y <- genExp ; return $ GT x y)
+    genEQ = (1, do x <- genExp; y <- genExp ; return $ EQ x y)
+    genNot = (1, do x <- genExp; return $ Not x)
+
+genArithmeticExp :: Gen Exp
+genArithmeticExp = frequency [genConst, genVar, genAdd, genSub, genMult, genDiv, genNeg]
+  where
+    genConst = (80, do x <- arbitrary; return $ Const x)
+    genVar = (15, do x <- genVarName; return $ Var x)
+    genAdd = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Add x y)
+    genSub = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Sub x y)
+    genMult = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Mult x y)
+    genDiv = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Div x y)
+    genNeg = (1, do x <- genArithmeticExp; return $ Neg x )
+
+genVarName :: Gen String
+genVarName = do
+    -- to make sure the var name is valid
+    f <- elements ['a' .. 'z']
+    r <- listOf (elements (['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']))
+    return (f : r)
+
+genCBlock :: Gen CBlock
+genCBlock = vectorOf 5 genInst
 
 -- NOTE: Check if a PicoC code is valid
 prop_valid :: PicoC -> Bool
