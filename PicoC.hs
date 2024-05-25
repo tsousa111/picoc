@@ -153,8 +153,8 @@ pWhile = f <$> token' "while" <*> pExp <*> pCBlock
 
 -- NOTE: a prioridade é de baixo para cima
 pIf :: Parser Inst
-pIf = f <$> token' "if" <*> symbol' '(' <*> pExp <*>symbol' ')' <*> token' "then" <*> pCBlock <*> token' "else" <*> pCBlock
-   <|> g <$> token' "if" <*> symbol' '(' <*> pExp <*>symbol' ')' <*> token' "then" <*> pCBlock
+pIf = f <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock <*> token' "else" <*> pCBlock
+   <|> g <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock
   where
     f _ _ x _ _ y _ z = ITE x y z
     g _ _ x _ _ y = ITE x y []
@@ -239,9 +239,9 @@ eval FALSE _ = 0
 eval (LT e1 e2) c = if eval e1 c < eval e2 c then 1 else 0
 eval (GT e1 e2) c = if eval e1 c > eval e2 c then 1 else 0
 eval (EQ e1 e2) c = if eval e1 c == eval e2 c then 1 else 0
-eval (AND e1 e2) c = if (eval e1 c /= 0) && (eval e2 c /= 0) then 1 else 0
-eval (OR e1 e2) c = if (eval e1 c /= 0) || (eval e2 c /= 0) then 1 else 0
-eval (Not e) c = if not (eval e c /= 0) then 1 else 0
+eval (AND e1 e2) c = if eval e1 c /= 0 && eval e2 c /= 0 then 1 else 0
+eval (OR e1 e2) c = if eval e1 c /= 0 || eval e2 c /= 0 then 1 else 0
+eval (Not e) c = if eval e c == 0 then 1 else 0
 
 opt :: Exp -> Exp
 opt (Add (Const 0) x) = opt x
@@ -438,15 +438,17 @@ removeItem k (c@(ck, v) : t)
 
 prog1 = picoC "if (a > 3) then { a = a + 1; }else { a = b; } return a;"
 inputs1 :: Inputs
-inputs1 = [("a", 2), ("b", 5)]
+inputs1 = [("a", 2), ("b", 0),("c", 5)]
 
 prog2 = picoC "while (a < 5) { a = a + 1;} return b;"
 inputs2 :: Inputs
-inputs2 = [("a", 0), ("b", 5)]
+inputs2 = [("a", 1), ("b", 6),("c", 3)]
 
 prog3 = picoC "if (!(a > b)) then { if (b > c) then { m = b; } else { m = c; } } else { if (a > c) then { m = a; } else { m = b; } } return m;"
-inputs3 :: Inputs
-inputs3 = [("a", 1), ("b", 5),("c", 3)]
+inputs3 = [("a", 5), ("b", 3),("c", 1)]
+
+testSuiteProg3 = [(inputs1, 5), (inputs2, 6), (inputs3, 5)]
+runTestSuiteProg3 = runTestSuite prog3 testSuiteProg3
 
 prog4 = picoC "if ((a > 3) > (b < 4)) then { a = 1;} a = 5; b = 2; return a;"
 prog5 = picoC "a = (a > 3) > (b < 4);"
@@ -459,6 +461,7 @@ evaluate (PicoC i) inp = ret
 runPicoC :: [Inst] -> Inputs -> (Inputs, Maybe Int)
 runPicoC [] i = (i, Nothing)
 runPicoC ((Return x) : _) i = (i, Just (eval x i))
+runPicoC ((Print x): t) i = trace x (runPicoC t i)
 runPicoC ((Attrib n v) : t) i = runPicoC t ((n, eval v i) : removeItem n i)
 runPicoC ((ITE exp e1 e2) : t) i
     | eval exp i /= 0 = if isJust ret_e2 then i_e2 else runPicoC t inputs_e1
@@ -479,6 +482,15 @@ runTestSuite :: PicoC -> [(Inputs, Int)] -> Bool
 runTestSuite _ [] = True
 runTestSuite p (h:t) = runTest p h && runTestSuite p t
 
+instrumentationInst :: [Inst] -> [Inst]
+instrumentationInst [] = []
+instrumentationInst (a@(Attrib n v) : t) = a : Print (unparseInst a) : instrumentationInst t
+instrumentationInst ((ITE x y z) : t) = Print ("If condition " ++ unparseExp x) : ITE x (instrumentationInst y) (instrumentationInst z) : instrumentationInst t
+instrumentationInst ((While x c): t) = Print ("While condition " ++ unparseExp x) : While x (instrumentationInst c) : instrumentationInst t
+instrumentationInst ((Return x): _) = [Print ("Result " ++ unparseExp x)]
+
+instrumentation :: PicoC -> PicoC
+instrumentation (PicoC inst) = PicoC (instrumentationInst inst)
 
 
 
