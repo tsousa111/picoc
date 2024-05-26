@@ -1,4 +1,4 @@
-module Parser where
+module Library.Parser where
 
 import Data.Char
 import Prelude hiding ((<$>), (<*>), (<|>))
