@@ -24,7 +24,7 @@ instance StrategicData PicoC
 instance (StrategicData a) => StrategicData [a]
 
 data PicoC = PicoC [Inst]
-    deriving (Data, Eq, Show)
+    deriving (Data, Eq)
 
 data Inst
     = Attrib !String !Exp
@@ -179,10 +179,9 @@ picoC s = fst $ head $ filter ((== "") . snd) (pPicoC s)
 -- unparse : AST to text
 -- pretty printing
 ---------------------------
--- instance Show PicoC where
-    -- show = unparse
+instance Show PicoC where
+    show = unparse
 
--- FIX: fix unparser
 unparse :: PicoC -> String
 unparse (PicoC x) = unparseListInst x
 
@@ -193,6 +192,8 @@ unparseInst (Attrib x y) = x ++ " = " ++ unparseExp y ++ ";\n"
 unparseInst (While x y) = "while (" ++ unparseExp x ++ ") " ++ unparseCBlock y
 unparseInst (ITE x y []) = "if (" ++ unparseExp x ++ ") then " ++ unparseCBlock y
 unparseInst (ITE x y z) = "if (" ++ unparseExp x ++ ") then " ++ unparseCBlock y ++ " else " ++ unparseCBlock z
+unparseInst (Return x) = "return " ++ unparseExp x ++ ";\n"
+unparseInst (Print x) = "print(" ++ x ++ ");\n"
 
 unparseExp (Const x) = show x
 unparseExp (Var x) = x
@@ -204,11 +205,11 @@ unparseExp (Add x y) = "(" ++ unparseExp x ++ " + " ++ unparseExp y ++ ")"
 unparseExp (Sub x y) = "(" ++ unparseExp x ++ " - " ++ unparseExp y ++ ")"
 unparseExp (Mult x y) = "(" ++ unparseExp x ++ " * " ++ unparseExp y ++ ")"
 unparseExp (Div x y) = "(" ++ unparseExp x ++ " / " ++ unparseExp y ++ ")"
-unparseExp (Neg x) = "(" ++ "-" ++ unparseExp x ++ ")"
+unparseExp (Neg x) = "-" ++ "(" ++ unparseExp x ++ ")"
 unparseExp (LT x y) = "(" ++ unparseExp x ++ " < " ++ unparseExp y ++ ")"
 unparseExp (GT x y) = "(" ++ unparseExp x ++ " > " ++ unparseExp y ++ ")"
 unparseExp (EQ x y) = "(" ++ unparseExp x ++ " == " ++ unparseExp y ++ ")"
-unparseExp (Not x) = "(" ++ "!" ++ unparseExp x ++ ")"
+unparseExp (Not x) = "!" ++ "(" ++ unparseExp x ++ ")"
 
 unparseCBlock :: CBlock -> String
 unparseCBlock x = "{\n" ++ unparseListInst x ++ "}\n"
@@ -217,14 +218,6 @@ unparseCBlock x = "{\n" ++ unparseListInst x ++ "}\n"
 prop :: PicoC -> Bool
 prop ast = ast == picoC (unparse ast)
 
-data Types = Int !Int | Bool !Bool
-instance Num Types where
-    (+) (Int a) (Int b) = Int (a + b)
-    (-) (Int a) (Int b) = Int (a - b)
-    (*) (Int a) (Int b) = Int (a * b)
-    abs (Int a) = Int (abs a)
-    signum (Int a) = Int (signum a)
-    fromInteger a = Int (fromInteger a)
 
 eval :: Exp -> [(String, Int)] -> Int
 eval (Const x) _ = x
