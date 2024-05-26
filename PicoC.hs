@@ -3,6 +3,7 @@
 
 {-# HLINT ignore "Use <$>" #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
+{-# HLINT ignore "Redundant return" #-}
 
 module PicoC where
 
@@ -17,6 +18,7 @@ import Parser
 import Test.QuickCheck
 import Text.Read
 import Prelude hiding (EQ, GT, LT, (<$>), (<*>), (<|>))
+import System.Random
 
 instance StrategicData PicoC
 instance (StrategicData a) => StrategicData [a]
@@ -56,10 +58,10 @@ data Exp
 -- completar o parser | done
 -- estender o parser para permitir outros operadores | done
 -- (úteis nas condições do While e IFE)
---       por exemplo em Haskell/C/Java é possível
---            ghci> 2 + 3 > 5
---            False
---       logo a adição tem mais prioridade que > ...
+    --   por exemplo em Haskell/C/Java é possível
+        --    ghci> 2 + 3 > 5
+        --    False
+    --   logo a adição tem mais prioridade que > ...
 -- completar a função unparse | done
 -- melhorar a função opt para fazer todas as optimizacoes | done?
 -- testar a propriedade definida pela função prop | done
@@ -178,7 +180,7 @@ picoC s = fst $ head $ filter ((== "") . snd) (pPicoC s)
 -- pretty printing
 ---------------------------
 -- instance Show PicoC where
---     show = unparse
+    -- show = unparse
 
 -- FIX: fix unparser
 unparse :: PicoC -> String
@@ -355,7 +357,7 @@ ifMerge _ = Nothing
 -- NOTE: Quickcheck Tpc Entrega 04-04 do prop
 instance Arbitrary PicoC where
     arbitrary = genPicoC
-    
+
 genPicoC :: Gen PicoC
 genPicoC = do
     x <- vectorOf 5 genInst
@@ -496,11 +498,25 @@ instrumentationInst ((Return x): _) = [Print ("Result " ++ unparseExp x)]
 instrumentation :: PicoC -> PicoC
 instrumentation (PicoC inst) = PicoC (instrumentationInst inst)
 
+breakCode :: Inst -> Maybe Inst
+breakCode (Attrib v n) = Just $ Attrib v (Neg n)
+breakCode (While exp b) = Just $ While (Not exp) b
+breakCode (ITE exp t e) = Just $ ITE (Not exp) t e
+breakCode _ = Nothing
+
+mutateCode :: PicoC -> IO PicoC
+mutateCode p = do
+    let muts = mutations p breakCode
+    x <- randomRIO (0, length muts - 1)
+    let new = muts !! x
+    return new
 
 
+mutateCodeSeed:: PicoC -> PicoC
+mutateCodeSeed p@(PicoC i) = muts !! x
+    where
+        muts = mutations p breakCode
+        gen = mkStdGen 42 -- bruh
+        (x, _) = randomR (0, length muts - 1) gen
 
--- Example
-examplePicoC = "margem = 15; \n if (!(margem > 3)) then { \n margem = 4 * 23 + 3 ; \n} else {\n margem = x * 1 + 0; \n}"
-examplePicoC2 = "margem = 15; \n if (margem > 3) then { \n margem = 4 * 23 + 3 ; \n}"
 
-refactorTest = "margem = 15; if (margem == TRUE) then {if (!(margem > 3)) then {} else {margem = 4 * 23 + 3 ;}} else {margem = 2;}"
