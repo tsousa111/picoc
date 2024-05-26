@@ -17,6 +17,7 @@ import Test.QuickCheck
 import Text.Read
 import Prelude hiding (EQ, GT, LT, (<$>), (<*>), (<|>))
 import System.Random
+import Library.Ztrategic
 
 instance StrategicData PicoC
 instance (StrategicData a) => StrategicData [a]
@@ -231,18 +232,36 @@ removeItem k (c@(ck, v) : t)
     | k == ck = t
     | otherwise = c : removeItem k t
 
-prog1 = picoC "if (a > 3) then { a = a + 1; }else { a = b; } return a;"
-inputs1 :: Inputs
-inputs1 = [("a", 2), ("b", 0),("c", 5)]
+-- Subtração entre 2 números positivos, -1 em caso de erro de input (demora muito)
+prog1 = picoC "if((a > -1) && (b > -1))then{if(a>b)then{c = a - b;}else{c = b - a;}}else{c = -1;}return c;"
 
-prog2 = picoC "while (a < 5) { a = a + 1;} return b;"
-inputs2 :: Inputs
-inputs2 = [("a", 1), ("b", 6),("c", 3)]
+-- Conta arbitrária
+prog2 = picoC "if (a>10)then {a = a * 10;}else{a = a - 10;}return a;"
 
+-- Maior de 3 números, resultado em m
 prog3 = picoC "if (a > b) then { if (a > c) then { m = a; } else { m = c; } } else { if (b > c) then { m = b; } else { m = c; } } return m;"
-inputs3 = [("a", 5), ("b", 3),("c", 1)]
 
-testSuiteProg3 = [(inputs1, 5), (inputs2, 6), (inputs3, 5)]
+inputs_prog1_1 = [("a", 1),("b",10)]
+inputs_prog1_2 = [("a", 10),("b",10)]
+inputs_prog1_3 = [("a", -1),("b",10)]
+
+inputsprog_2_1 = [("a", 20)]
+inputsprog_2_2 = [("a", 0)]
+inputsprog_2_3 = [("a", 3)]
+
+inputsprog_3_1 = [("a", 2), ("b", 0),("c", 5)]
+inputsprog_3_2 = [("a", 1), ("b", 6),("c", 3)]
+inputsprog_3_3 = [("a", 5), ("b", 3),("c", 1)]
+
+
+testSuiteProg1 = [(inputs_prog1_1,9),(inputs_prog1_2, 0), (inputs_prog1_3, -1)]
+runTestSuiteProg1 = runTestSuite prog1 testSuiteProg1
+
+testSuiteProg2 = [(inputsprog_2_1,200),(inputsprog_2_2, -10), (inputsprog_2_3, -7)]
+runTestSuiteProg2 = runTestSuite prog2 testSuiteProg2
+
+
+testSuiteProg3 = [(inputsprog_3_1, 5), (inputsprog_3_2, 6), (inputsprog_3_3, 5)]
 runTestSuiteProg3 = runTestSuite prog3 testSuiteProg3
 
 evaluate :: PicoC -> Inputs -> Int
@@ -310,14 +329,18 @@ mutateCodeSeed:: PicoC -> PicoC
 mutateCodeSeed p@(PicoC i) = muts !! x
     where
         muts = mutations p breakCode
-        gen = mkStdGen 42 -- bruh
+        gen = mkStdGen 42 -- seed
         (x, _) = randomR (0, length muts - 1) gen
 
+
+runMutationSuite :: PicoC -> [(Inputs, Int)] -> IO [Bool]
 runMutationSuite p l = do
                 let mutation = mutateCodeSeed p
                 _ <- print mutation
                 let result = instrumentedTestSuite mutation l
                 return result
 
+runMutationSuiteProg1 = runMutationSuite prog1 testSuiteProg1
+runMutationSuiteProg2 = runMutationSuite prog2 testSuiteProg2
 runMutationSuiteProg3 = runMutationSuite prog3 testSuiteProg3
 
