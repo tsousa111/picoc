@@ -166,8 +166,13 @@ pReturn = f <$> token' "return" <*> pExp <*> symbol' ';'
   where
     f _ x _ = Return x
 
+pPrint :: Parser Inst
+pPrint = f <$> token' "print" <*> symbol' '(' <*> oneOrMore (satisfy' isAscii) <*> symbol' ')' <*> symbol' ';'
+    where
+        f _ _ x _ _ = Print x
+
 pInst :: Parser Inst
-pInst = pIf <|> pReturn <|> pWhile <|> pAtrib
+pInst = pIf <|> pReturn <|> pWhile <|> pAtrib <|> pPrint
 
 pPicoC :: Parser PicoC
 pPicoC = PicoC <$> oneOrMore pInst
@@ -217,15 +222,7 @@ unparseCBlock x = "{\n" ++ unparseListInst x ++ "}\n"
 prop :: PicoC -> Bool
 prop ast = ast == picoC (unparse ast)
 
-data Types = Int !Int | Bool !Bool
-instance Num Types where
-    (+) (Int a) (Int b) = Int (a + b)
-    (-) (Int a) (Int b) = Int (a - b)
-    (*) (Int a) (Int b) = Int (a * b)
-    abs (Int a) = Int (abs a)
-    signum (Int a) = Int (signum a)
-    fromInteger a = Int (fromInteger a)
-
+-- NOTE: Exp eval
 eval :: Exp -> [(String, Int)] -> Int
 eval (Const x) _ = x
 eval (Var x) c = case lookup x c of
@@ -245,6 +242,7 @@ eval (AND e1 e2) c = if eval e1 c /= 0 && eval e2 c /= 0 then 1 else 0
 eval (OR e1 e2) c = if eval e1 c /= 0 || eval e2 c /= 0 then 1 else 0
 eval (Not e) c = if eval e c == 0 then 1 else 0
 
+-- NOTE: Vanilla optimization
 opt :: Exp -> Exp
 opt (Add (Const 0) x) = opt x
 opt (Add x (Const 0)) = opt x
@@ -470,7 +468,7 @@ runPicoC ((Return x) : _) i = (i, Just (eval x i))
 runPicoC ((Print x): t) i = trace x (runPicoC t i)
 runPicoC ((Attrib n v) : t) i = runPicoC t ((n, eval v i) : removeItem n i)
 runPicoC ((ITE exp e1 e2) : t) i
-    | eval exp i /= 0 = if isJust ret_e2 then i_e2 else runPicoC t inputs_e1
+    | eval exp i /= 0 = if isJust ret_e1 then i_e1 else runPicoC t inputs_e1
     | otherwise = if isJust ret_e2 then i_e2 else runPicoC t inputs_e2
   where
     i_e1@(inputs_e1, ret_e1) = runPicoC e1 i
@@ -484,19 +482,27 @@ runPicoC inst@((While exp c) : t) i
 runTest :: PicoC -> (Inputs, Int) -> Bool
 runTest p (i, result) = evaluate p i == result
 
-runTestSuite :: PicoC -> [(Inputs, Int)] -> Bool
-runTestSuite _ [] = True
-runTestSuite p (h:t) = runTest p h && runTestSuite p t
+runTests :: PicoC -> [(Inputs,Int)] -> [Bool]
+runTests _ [] = []
+runTests p (h:t) = runTest p h : runTests p t
 
+runTestSuite :: PicoC -> [(Inputs, Int)] -> Bool
+runTestSuite p l = and $ runTests p l
+
+-- NOTE: Instrumentation 8)
 instrumentationInst :: [Inst] -> [Inst]
 instrumentationInst [] = []
-instrumentationInst (a@(Attrib n v) : t) = a : Print (unparseInst a) : instrumentationInst t
-instrumentationInst ((ITE x y z) : t) = Print ("If condition " ++ unparseExp x) : ITE x (instrumentationInst y) (instrumentationInst z) : instrumentationInst t
-instrumentationInst ((While x c): t) = Print ("While condition " ++ unparseExp x) : While x (instrumentationInst c) : instrumentationInst t
-instrumentationInst ((Return x): _) = [Print ("Result " ++ unparseExp x)]
+instrumentationInst (a@(Attrib n v) : t) = a : Print ("> attrib " ++ show n ++ " = "++ unparseExp v) : instrumentationInst t
+instrumentationInst ((ITE x y z) : t) = Print ("> if condition " ++ unparseExp x) : ITE x (instrumentationInst y) (instrumentationInst z) : instrumentationInst t
+instrumentationInst ((While x c): t) = Print ("> while condition " ++ unparseExp x) : While x (instrumentationInst c) : instrumentationInst t
+instrumentationInst (r@(Return x): _) = Print ("> return " ++ unparseExp x) : [r]
 
 instrumentation :: PicoC -> PicoC
 instrumentation (PicoC inst) = PicoC (instrumentationInst inst)
+
+-- NOTE: Instrumentation 9)
+instrumentedTestSuite :: PicoC -> [(Inputs, Int)] -> Bool
+instrumentedTestSuite p i = runTestSuite (instrumentation p) i
 
 breakCode :: Inst -> Maybe Inst
 breakCode (Attrib v n) = Just $ Attrib v (Neg n)
@@ -504,10 +510,10 @@ breakCode (While exp b) = Just $ While (Not exp) b
 breakCode (ITE exp t e) = Just $ ITE (Not exp) t e
 breakCode _ = Nothing
 
-mutateCode :: PicoC -> IO PicoC
+mutateCode :: PicoC -> Gen PicoC
 mutateCode p = do
     let muts = mutations p breakCode
-    x <- randomRIO (0, length muts - 1)
+    x <- choose (0, length muts - 1)
     let new = muts !! x
     return new
 
