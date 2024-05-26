@@ -325,22 +325,22 @@ mutateCode p = do
     let new = muts !! x
     return new
 
-mutateCodeSeed:: PicoC -> PicoC
-mutateCodeSeed p@(PicoC i) = muts !! x
+mutateCodeSeed:: PicoC -> Int -> PicoC
+mutateCodeSeed p@(PicoC i) s = muts !! x
     where
         muts = mutations p breakCode
-        gen = mkStdGen 42 -- seed
+        gen = mkStdGen s -- seed
         (x, _) = randomR (0, length muts - 1) gen
 
 
-runMutationSuite :: PicoC -> [(Inputs, Int)] -> IO [Bool]
-runMutationSuite p l = do
-                let mutation = mutateCodeSeed p
+runMutationSuite :: PicoC -> [(Inputs, Int)] -> Int -> IO [Bool]
+runMutationSuite p l s = do
+                let mutation = mutateCodeSeed p s
                 _ <- print mutation
                 let result = instrumentedTestSuite mutation l
                 return result
 
-runMutationSuiteProg1 = runMutationSuite prog1 testSuiteProg1
-runMutationSuiteProg2 = runMutationSuite prog2 testSuiteProg2
-runMutationSuiteProg3 = runMutationSuite prog3 testSuiteProg3
+runMutationSuiteProg1 s = runMutationSuite prog1 testSuiteProg1 s
+runMutationSuiteProg2 s = runMutationSuite prog2 testSuiteProg2 s
+runMutationSuiteProg3 s = runMutationSuite prog3 testSuiteProg3 s
 
