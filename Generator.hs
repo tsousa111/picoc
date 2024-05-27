@@ -17,58 +17,120 @@ genPicoC = do
     return (PicoC (x ++ [Return (Const 0)]))
 
 genInst :: Gen Inst
-genInst = frequency [(95, genAttrib), (2, genWhile), (3, genITE)]
+genInst = frequency [(90,genAttrib),(5,genWhile),(5,genITE)]
 
 genAttrib :: Gen Inst
 genAttrib = do
-    var <- genVarName
-    exp <- genExp
-    return $ Attrib var exp
+  exp <- genExpArit 1
+  var <- genVar
+  return (Attrib var exp)
 
 genWhile :: Gen Inst
 genWhile = do
-    exp <- genExp
-    cBlock <- genCBlock
-    return $ While exp cBlock
+  expBool <- genBooleanExp 1
+  blocoC <- genCBlock
+  return (While expBool blocoC)
 
 genITE :: Gen Inst
 genITE = do
-    exp <- genExp
-    t <- genCBlock
-    e <- genCBlock
-    return $ ITE exp t e
-
-genExp :: Gen Exp
-genExp = frequency [genConst, genVar, genBool, genArithmeticExpo, genAND, genOR, genLT, genGT, genEQ, genNot]
-  where
-    genConst = (60, do x <- arbitrary; return $ Const x)
-    genVar = (30, do x <- genVarName; return $ Var x)
-    genBool = (10, elements [TRUE, FALSE])
-    genArithmeticExpo = (1, genArithmeticExp)
-    genAND = (1, do x <- genExp; y <- genExp; return $ AND x y)
-    genOR = (1, do x <- genExp; y <- genExp; return $ OR x y)
-    genLT = (1, do x <- genExp; y <- genExp; return $ LT x y)
-    genGT = (1, do x <- genExp; y <- genExp; return $ GT x y)
-    genEQ = (1, do x <- genExp; y <- genExp; return $ EQ x y)
-    genNot = (1, do x <- genExp; return $ Not x)
-
-genArithmeticExp :: Gen Exp
-genArithmeticExp = frequency [genConst, genVar, genAdd, genSub, genMult, genDiv, genNeg]
-  where
-    genConst = (80, do x <- arbitrary; return $ Const x)
-    genVar = (15, do x <- genVarName; return $ Var x)
-    genAdd = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Add x y)
-    genSub = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Sub x y)
-    genMult = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Mult x y)
-    genDiv = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Div x y)
-    genNeg = (1, do x <- genArithmeticExp; return $ Neg x)
-
-genVarName :: Gen String
-genVarName = do
-    -- to make sure the var name is valid
-    f <- elements ['a' .. 'z']
-    r <- listOf (elements (['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']))
-    return (f : r)
+  expBool <- genBooleanExp 1
+  blocoC <- genCBlock
+  blocoC2 <- genCBlock
+  return (ITE expBool blocoC blocoC2)
 
 genCBlock :: Gen CBlock
-genCBlock = vectorOf 5 genInst
+genCBlock = vectorOf 1 genInst
+
+genExpArit :: Int -> Gen Exp
+genExpArit n = frequency [(5,genConst),(n*5,genAdd n),(n*5,genMult n),(n*5,genDiv n),(n*5,genSub n),(n*5,genNeg n)]
+
+genMult :: Int -> Gen Exp
+genMult n = do
+    x <- genExpArit (div n 5)
+    y <- genExpArit (div n 5)
+    return (Mult x y)
+
+genAdd :: Int -> Gen Exp
+genAdd n = do
+    x <- genExpArit (div n 5)
+    y <- genExpArit (div n 5)
+    return (Add x y)
+
+genDiv :: Int -> Gen Exp
+genDiv n = do
+  x <- genExpArit (div n 5)
+  y <- genExpArit (div n 5)
+  return (Div x y)
+
+genSub :: Int -> Gen Exp
+genSub n = do
+  x <- genExpArit (div n 5)
+  y <- genExpArit (div n 5)
+  return (Sub x y)
+
+genNeg :: Int -> Gen Exp
+genNeg n = do
+  x <- genExpArit (div n 5)
+  return (Neg x)
+
+genConst :: Gen Exp
+genConst = do
+    x <- arbitrary
+    return (Const (abs x))
+
+
+genBooleanExp :: Int -> Gen Exp
+genBooleanExp n = frequency [(5*n,genGT n),(5*n,genLT n),(5*n,genEQ n),(5*n,genDIFF n),(5*n,genAND n),(5*n,genOR n),(5*n,genNot n),(5,genBool)]
+
+genBool :: Gen Exp
+genBool = elements [TRUE,FALSE]
+
+genGT :: Int -> Gen Exp
+genGT n = do
+  x <- arbitrary
+  y <- arbitrary
+  return (GT x y)
+
+genLT :: Int -> Gen Exp
+genLT n = do
+  x <- arbitrary
+  y <- arbitrary
+  return (LT x y)
+
+genEQ :: Int -> Gen Exp
+genEQ n = do
+  x <- arbitrary
+  y <- arbitrary
+  return (EQ x y)
+
+genDIFF :: Int -> Gen Exp
+genDIFF n = do
+  x <- arbitrary
+  y <- arbitrary
+  return (DIFF x y)
+
+genAND :: Int -> Gen Exp
+genAND n = do
+  x <- genBooleanExp (div n 6)
+  y <- genBooleanExp (div n 6)
+  return (AND x y)
+
+genOR :: Int -> Gen Exp
+genOR n = do
+  x <- genBooleanExp (div n 6)
+  y <- genBooleanExp (div n 6)
+  return (OR x y)
+
+genNot :: Int -> Gen Exp
+genNot n = do
+  x <- genBooleanExp (div n 6)
+  return (Not x)
+
+
+genVar :: Gen String
+genVar = vectorOf 1 $ elements ['a'..'z']
+
+instance Arbitrary Exp where
+    arbitrary :: Gen Exp
+    arbitrary = sized genExpArit
+
