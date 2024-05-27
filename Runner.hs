@@ -6,6 +6,7 @@ import PicoTypes
 import PicoUnparser
 import Props
 import Refactor
+import Test.QuickCheck
 import TestSuite
 
 -- Programa 1 - Subtração entre 2 números positivos, -1 em caso de erro de input (demora muito)

@@ -44,7 +44,6 @@ evaluate (PicoC i) inp = ret
   where
     (c, Just ret) = runPicoC i inp
 
--- NOTE: eval exp needs to work with logical statements
 runPicoC :: [Inst] -> Inputs -> (Inputs, Maybe Int)
 runPicoC [] i = (i, Nothing)
 runPicoC ((Return x) : _) i = (i, Just (eval x i))
