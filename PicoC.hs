@@ -46,6 +46,9 @@ data Exp
     | Neg !Exp
     | AND !Exp !Exp
     | OR !Exp !Exp
+    | LET !Exp !Exp
+    | GET !Exp !Exp
+    | DIFF !Exp !Exp
     | LT !Exp !Exp
     | GT !Exp !Exp
     | EQ !Exp !Exp
@@ -68,17 +71,23 @@ pExp4 = f <$> pExp3 <*> token' "&&" <*> pExp4
 
 pExp3 :: Parser Exp
 pExp3 = f <$> pExp2 <*> token' "==" <*> pExp3
-     <|> pExp2
+        <|> g <$> pExp2 <*> token' "!=" <*> pExp3
+        <|> pExp2
   where
     f x _ = EQ x
+    g x _ = DIFF x
 
 pExp2 :: Parser Exp
 pExp2 = f <$> pExp1 <*> token' "<" <*> pExp2
      <|> g <$> pExp1 <*> token' ">" <*> pExp2
+     <|> h <$> pExp1 <*> token' ">=" <*> pExp2
+     <|> i <$> pExp1 <*> token' "<=" <*> pExp2
      <|> pExp1
   where
     f x _ = LT x
     g x _ = GT x
+    h x _ = GET x
+    i x _ = LET x
 
 pExp1 :: Parser Exp
 pExp1 = f <$> pExp0 <*> symbol' '+' <*> pExp1
@@ -190,6 +199,9 @@ unparseExp (Div x y) = "(" ++ unparseExp x ++ " / " ++ unparseExp y ++ ")"
 unparseExp (Neg x) = "-" ++ "(" ++ unparseExp x ++ ")"
 unparseExp (LT x y) = "(" ++ unparseExp x ++ " < " ++ unparseExp y ++ ")"
 unparseExp (GT x y) = "(" ++ unparseExp x ++ " > " ++ unparseExp y ++ ")"
+unparseExp (LET x y) = "(" ++ unparseExp x ++ " <= " ++ unparseExp y ++ ")"
+unparseExp (GET x y) = "(" ++ unparseExp x ++ " >= " ++ unparseExp y ++ ")"
+unparseExp (DIFF x y) = "(" ++ unparseExp x ++ " != " ++ unparseExp y ++ ")"
 unparseExp (EQ x y) = "(" ++ unparseExp x ++ " == " ++ unparseExp y ++ ")"
 unparseExp (Not x) = "!" ++ "(" ++ unparseExp x ++ ")"
 
@@ -215,6 +227,9 @@ eval TRUE _ = 1
 eval FALSE _ = 0
 eval (LT e1 e2) c = if eval e1 c < eval e2 c then 1 else 0
 eval (GT e1 e2) c = if eval e1 c > eval e2 c then 1 else 0
+eval (GET e1 e2) c = if eval e1 c >= eval e2 c then 1 else 0
+eval (LET e1 e2) c = if eval e1 c <= eval e2 c then 1 else 0
+eval (DIFF e1 e2) c = if eval e1 c /= eval e2 c then 1 else 0
 eval (EQ e1 e2) c = if eval e1 c == eval e2 c then 1 else 0
 eval (AND e1 e2) c = if eval e1 c /= 0 && eval e2 c /= 0 then 1 else 0
 eval (OR e1 e2) c = if eval e1 c /= 0 || eval e2 c /= 0 then 1 else 0
@@ -232,7 +247,7 @@ removeItem k (c@(ck, v) : t)
     | otherwise = c : removeItem k t
 
 -- Subtração entre 2 números positivos, -1 em caso de erro de input (demora muito)
-prog1 = picoC "if((a > -1) && (b > -1))then{if(a>b)then{c = a - b;}else{c = b - a;}}else{c = -1;}return c;"
+prog1 = picoC "if((a >= 0) && (b >= 0))then{if(a>b)then{c = a - b;}else{c = b - a;}}else{c = -1;}return c;"
 
 -- Conta arbitrária
 prog2 = picoC "if (a>10)then {a = a * 10;}else{a = a - 10;}return a;"
@@ -324,22 +339,22 @@ mutateCode p = do
     let new = muts !! x
     return new
 
-mutateCodeSeed:: PicoC -> PicoC
-mutateCodeSeed p@(PicoC i) = muts !! x
+mutateCodeSeed:: PicoC -> Int -> PicoC
+mutateCodeSeed p@(PicoC i) s = muts !! x
     where
         muts = mutations p breakCode
-        gen = mkStdGen 42 -- seed
+        gen = mkStdGen s -- seed
         (x, _) = randomR (0, length muts - 1) gen
 
 
-runMutationSuite :: PicoC -> [(Inputs, Int)] -> IO [Bool]
-runMutationSuite p l = do
-                let mutation = mutateCodeSeed p
+runMutationSuite :: PicoC -> [(Inputs, Int)] -> Int -> IO [Bool]
+runMutationSuite p l s = do
+                let mutation = mutateCodeSeed p s
                 _ <- print mutation
                 let result = instrumentedTestSuite mutation l
                 return result
 
-runMutationSuiteProg1 = runMutationSuite prog1 testSuiteProg1
-runMutationSuiteProg2 = runMutationSuite prog2 testSuiteProg2
-runMutationSuiteProg3 = runMutationSuite prog3 testSuiteProg3
+runMutationSuiteProg1 s = runMutationSuite prog1 testSuiteProg1 s
+runMutationSuiteProg2 s = runMutationSuite prog2 testSuiteProg2 s
+runMutationSuiteProg3 s = runMutationSuite prog3 testSuiteProg3 s
 
