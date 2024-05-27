@@ -1,9 +1,12 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use <$>" #-}
 module Generator where
+
+import PicoTypes
+import PicoUnparser
 import Test.QuickCheck
-import Prelude hiding (EQ,LT,GT)
-import PicoC
+import Prelude hiding (EQ, GT, LT)
 
 instance Arbitrary PicoC where
     arbitrary = genPicoC
@@ -11,7 +14,7 @@ instance Arbitrary PicoC where
 genPicoC :: Gen PicoC
 genPicoC = do
     x <- vectorOf 5 genInst
-    return (PicoC x)
+    return (PicoC (x ++ [Return (Const 0)]))
 
 genInst :: Gen Inst
 genInst = frequency [(95, genAttrib), (2, genWhile), (3, genITE)]
@@ -42,11 +45,11 @@ genExp = frequency [genConst, genVar, genBool, genArithmeticExpo, genAND, genOR,
     genVar = (30, do x <- genVarName; return $ Var x)
     genBool = (10, elements [TRUE, FALSE])
     genArithmeticExpo = (1, genArithmeticExp)
-    genAND = (1, do x <- genExp; y <- genExp ; return $ AND x y)
-    genOR = (1, do x <- genExp; y <- genExp ; return $ OR x y)
-    genLT = (1, do x <- genExp; y <- genExp ; return $ LT x y)
-    genGT = (1, do x <- genExp; y <- genExp ; return $ GT x y)
-    genEQ = (1, do x <- genExp; y <- genExp ; return $ EQ x y)
+    genAND = (1, do x <- genExp; y <- genExp; return $ AND x y)
+    genOR = (1, do x <- genExp; y <- genExp; return $ OR x y)
+    genLT = (1, do x <- genExp; y <- genExp; return $ LT x y)
+    genGT = (1, do x <- genExp; y <- genExp; return $ GT x y)
+    genEQ = (1, do x <- genExp; y <- genExp; return $ EQ x y)
     genNot = (1, do x <- genExp; return $ Not x)
 
 genArithmeticExp :: Gen Exp
@@ -54,11 +57,11 @@ genArithmeticExp = frequency [genConst, genVar, genAdd, genSub, genMult, genDiv,
   where
     genConst = (80, do x <- arbitrary; return $ Const x)
     genVar = (15, do x <- genVarName; return $ Var x)
-    genAdd = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Add x y)
-    genSub = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Sub x y)
-    genMult = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Mult x y)
-    genDiv = (1, do x <- genArithmeticExp;y <- genArithmeticExp; return $ Div x y)
-    genNeg = (1, do x <- genArithmeticExp; return $ Neg x )
+    genAdd = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Add x y)
+    genSub = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Sub x y)
+    genMult = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Mult x y)
+    genDiv = (1, do x <- genArithmeticExp; y <- genArithmeticExp; return $ Div x y)
+    genNeg = (1, do x <- genArithmeticExp; return $ Neg x)
 
 genVarName :: Gen String
 genVarName = do

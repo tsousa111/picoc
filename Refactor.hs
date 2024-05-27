@@ -2,8 +2,10 @@ module Refactor where
 
 import Data.Generics.Zipper
 import Library.Ztrategic
-import PicoC
+import PicoTypes
 import Prelude hiding (EQ, GT, LT, (<$>))
+import PicoUnparser
+import PicoParser
 
 -- NOTE: Vanilla optimization
 opt :: Exp -> Exp
