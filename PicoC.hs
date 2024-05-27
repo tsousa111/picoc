@@ -131,7 +131,6 @@ pWhile = f <$> token' "while" <*> pExp <*> pCBlock
   where
     f _ = While
 
--- NOTE: a prioridade é de baixo para cima
 pIf :: Parser Inst
 pIf = f <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock <*> token' "else" <*> pCBlock
    <|> g <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock
@@ -159,8 +158,8 @@ picoC :: String -> PicoC
 picoC s = fst $ head $ filter ((== "") . snd) (pPicoC s)
 
 ---------------------------
--- unparse : AST to text
--- pretty printing
+-- unparse : AST to text --
+-- pretty printing       --
 ---------------------------
 instance Show PicoC where
     show = unparse
