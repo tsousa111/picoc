@@ -1,7 +1,9 @@
 # PicoC
 ## Grupo
-Diogo Camacho Barbosa PG50326
-João Tiago Sousa PG50500
+| Número  | Nome                  | Git             |
+| :------ | :-------------------- | :-------------- |
+| pg50326 | Diogo Camacho Barbosa | `DBarbosa15987` |
+| pg50500 | João Tiago Sousa      | `tsousa111`     |
 
 ## Execução
 No ficheiro **Runner.hs** são importadas todas as componentes do projeto.
