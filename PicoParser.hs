@@ -3,8 +3,47 @@ module PicoParser where
 import Data.Char
 import Library.Parser
 import PicoTypes
-import Prelude hiding (EQ, GT, LT, (<$>), (<*>), (<|>))
 import Text.Read
+import Prelude hiding (EQ, GT, LT, (<$>), (<*>), (<|>))
+
+picoC :: String -> PicoC
+picoC s = fst $ head $ filter ((== "") . snd) (pPicoC s)
+
+pPicoC :: Parser PicoC
+pPicoC = PicoC <$> oneOrMore pInst
+
+pInst :: Parser Inst
+pInst = pIf <|> pReturn <|> pWhile <|> pAtrib <|> pPrint
+
+pAtrib :: Parser Inst
+pAtrib = f <$> pNames <*> symbol' '=' <*> pExp <*> symbol' ';'
+  where
+    f x _ z _ = Attrib x z
+
+pCBlock :: Parser CBlock
+pCBlock = enclosedBy (symbol' '{') (zeroOrMore pInst) (symbol' '}')
+
+pWhile :: Parser Inst
+pWhile = f <$> token' "while" <*> symbol' '(' <*> pExp <*> symbol' ')'<*> pCBlock
+  where
+    f _ _ x _ y = While x y
+
+pIf :: Parser Inst
+pIf = f <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock <*> token' "else" <*> pCBlock
+   <|> g <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock
+  where
+    f _ _ x _ _ y _ z = ITE x y z
+    g _ _ x _ _ y = ITE x y []
+
+pReturn :: Parser Inst
+pReturn = f <$> token' "return" <*> pExp <*> symbol' ';'
+  where
+    f _ x _ = Return x
+
+pPrint :: Parser Inst
+pPrint = f <$> token' "print" <*> symbol' '(' <*> oneOrMore (satisfy' isAscii) <*> symbol' ')' <*> symbol' ';'
+    where
+        f _ _ x _ _ = Print x
 
 pExp = pExp5
 
@@ -74,45 +113,3 @@ pFactor = f <$> pInt
     k _ = Not
     l _ x _ = x
 
-pAtrib :: Parser Inst
-pAtrib = f <$> oneOrMore (satisfy' isAlphaNum) <*> symbol' '=' <*> pExp <*> symbol' ';'
-  where
-    f x _ z _ = Attrib x z
-
-pCBlock :: Parser CBlock
-pCBlock =
-    enclosedBy
-        (symbol' '{')
-        (zeroOrMore pInst)
-        (symbol' '}')
-
-pWhile :: Parser Inst
-pWhile = f <$> token' "while" <*> symbol' '(' <*> pExp <*> symbol' ')'<*> pCBlock
-  where
-    f _ _ x _ y = While x y
-
-pIf :: Parser Inst
-pIf = f <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock <*> token' "else" <*> pCBlock
-   <|> g <$> token' "if" <*> symbol' '(' <*> pExp <*> symbol' ')' <*> token' "then" <*> pCBlock
-  where
-    f _ _ x _ _ y _ z = ITE x y z
-    g _ _ x _ _ y = ITE x y []
-
-pReturn :: Parser Inst
-pReturn = f <$> token' "return" <*> pExp <*> symbol' ';'
-  where
-    f _ x _ = Return x
-
-pPrint :: Parser Inst
-pPrint = f <$> token' "print" <*> symbol' '(' <*> oneOrMore (satisfy' isAscii) <*> symbol' ')' <*> symbol' ';'
-    where
-        f _ _ x _ _ = Print x
-
-pInst :: Parser Inst
-pInst = pIf <|> pReturn <|> pWhile <|> pAtrib <|> pPrint
-
-pPicoC :: Parser PicoC
-pPicoC = PicoC <$> oneOrMore pInst
-
-picoC :: String -> PicoC
-picoC s = fst $ head $ filter ((== "") . snd) (pPicoC s)

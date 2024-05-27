@@ -1,0 +1,55 @@
+PicoC: Inst+
+
+Inst: Attrib | Print | While | ITE | Return
+
+Attrib: Names "=" Exp ";"
+
+Print: "print" "(" Exp ")"
+
+While: "while" Exp "{" CBlock "}"
+
+Return: "return" Exp
+
+ITE: "if" "(" Exp ")" "then" "{" CBlock "}" else?
+else: "else" "{" CBlock "}"
+
+CBlock: Inst+
+
+Exp: Exp5
+Exp5: Exp4 "||" Exp5
+    | Exp4
+
+Exp4: Exp3 "&&" Exp4
+    | Exp3
+
+Exp3: Exp2 "==" Exp3
+    | Exp2 token' "!=" Exp3
+    | Exp2
+
+
+Exp2: Exp1 "<" Exp2
+     | Exp1 ">" Exp2
+     | Exp1 ">=" Exp2
+     | Exp1 "<=" Exp2
+     | Exp1
+
+
+Exp1: Exp0 "+" Exp1
+     | Exp0 "-" Exp1
+     | Exp0
+
+Exp0: Factor '*' Exp0
+     | Factor '/' Exp0
+     | Factor
+
+Factor: Int
+      | Names
+      | "TRUE"
+      | "FALSE"
+      | '-' Factor
+      | '!' Factor
+      | '(' Exp ')'
+
+Int: /-?[0-9]+/
+Names: /[a-z]\w+/
+
