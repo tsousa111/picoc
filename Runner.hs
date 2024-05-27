@@ -10,7 +10,7 @@ import Test.QuickCheck
 import TestSuite
 
 -- Programa 1 - Subtração entre 2 números positivos, -1 em caso de erro de input (demora muito)
-prog1 = picoC "if((a >= 0) && (b >= 0))then{if(a>b)then{c = a - b;}else{c = b - a;}}else{c = -1;}return c;"
+prog1 = picoC "if(a >= 0 && b >= 0)then{if(a>b)then{c = a - b;}else{c = b - a;}}else{c = -1;}return c;"
 
 inputs_prog1_1 = [("a", 1), ("b", 10)]
 inputs_prog1_2 = [("a", 10), ("b", 10)]
