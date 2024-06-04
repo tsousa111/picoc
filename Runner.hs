@@ -44,3 +44,10 @@ testSuiteProg3 = [(inputsprog_3_1, 5), (inputsprog_3_2, 6), (inputsprog_3_3, 5)]
 runTestSuiteProg3 = runTestSuite prog3 testSuiteProg3
 
 runMutationSuiteProg3 s = runMutationSuite prog3 testSuiteProg3 s
+
+-- Programa Refactor
+progRefactor = picoC "if (a) then { if (b) then { a = 0;}}"
+
+refactoredProg = Refactor.refactor progRefactor
+
+
